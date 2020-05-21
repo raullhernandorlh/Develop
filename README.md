@@ -1,5 +1,4 @@
-# Develop
-Ejercicios diarios de clase separados por modulos
+# Develop Ejercicios diarios de clase separados por modulos
 
 
 #### back-jsvi205
