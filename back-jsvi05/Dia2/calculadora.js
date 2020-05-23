@@ -2,6 +2,9 @@ const express = require('express')
 const app = express()
  
 
+// Lo que viene despues de "?" es la Query String
+// Asi se tiraria la URL para realizar la operacion sumar 20 +100 = 120
+//localhost:1500/operacion?type=sumar&op1=20&op2=100
 
 app.get('/operacion', function (req, res) { 
     let op1 = parseInt(req.query['op1'])
@@ -10,7 +13,7 @@ app.get('/operacion', function (req, res) {
 
 
     const operations = {
-        'sum' :(op1,op2)  => op1 + op2,
+        'sumar' :(op1,op2)  => op1 + op2,
         'restar' :(op1,op2)  => op1 - op2,
         'multiplicar' :(op1,op2)  => op1 * op2,
         'dividir' :(op1,op2)  => op1 / op2,
@@ -28,7 +31,13 @@ app.get('/operacion', function (req, res) {
     }
 
     const result = operations[operation](op1,op2);
-    res.json(result);
+
+    res.json({
+        operation:operation,
+        op1:op1,
+        op2:op2,
+        resultado:result
+    });
 
 //   if(req.query.type === 'sumar'){
       
