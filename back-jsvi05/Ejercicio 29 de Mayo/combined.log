@@ -1,0 +1,11 @@
+{"service":"user-service","message":"helloworld","level":"error"}
+{"service":"user-service","message":"helloworld","level":"info"}
+{"service":"user-service","message":"helloworld","level":"error"}
+{"service":"user-service","message":"helloworld","level":"info"}
+{"message":"Running server in port 8000","level":"info","service":"user-service"}
+{"message":"Running server in port 8000","level":"info","service":"user-service"}
+2020-05-29T18:21:03.766Z [right meow !!] info : Hello
+2020-05-29T18:22:03.088Z [right meow !!] info : Hello
+2020-05-29T18:23:23.760Z [right meow !!] info : Hello
+2020-05-29T18:25:18.343Z [right meow !!] info : Hello
+2020-05-29T18:26:35.386Z [right meow !!] info : Hello
