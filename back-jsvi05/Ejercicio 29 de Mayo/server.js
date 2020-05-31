@@ -1,7 +1,7 @@
 
 // Lineas requeridas para Winston
-const {createLogger,format,transports} = require('winston');
-const {combine,timestamp,label,printf} = format;
+const { createLogger, format, transports } = require('winston');
+const { combine, timestamp, label, printf } = format;
 const axios = require('axios');
 const bodyParser = require('body-parser');
 const csvtojson = require('csvtojson');
@@ -10,7 +10,7 @@ const axiosCacheAdapter = require('axios-cache-adapter');
 
 const app = express();
 
-
+let globalId = 1;
 /*
   Configuración de CORS. 
 
@@ -30,6 +30,10 @@ app.use(function (req, res, next) {
   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
   next();
 });
+
+// BODY PARSER (Para parsear texto plano a JSON. Obligatorio para utilizarlo con get, post, delete, put y patch
+// Funciona de forma transparente para el programador . Es decir no tenemos que ejecutar ninguna instruccion mas
+// en el codigo que la que especificamos ahora con el use . Es un MIDDLEWARE)
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -53,18 +57,19 @@ app.use(bodyParser.urlencoded({ extended: true }));
 //   ]
 // });
 
-// Creando logger especifico con libreria Winston
-const myFormat = printf(({level, message,label,timestamp}) =>{
+// CREACION LOGGER WINSTON (Creando logger especifico con libreria Winston)
+
+const myFormat = printf(({ level, message, label, timestamp }) => {
   return `${timestamp} [${label}] ${level} : ${message}`;
 })
 
 const logger = createLogger({
-  format:combine(
-    label({label:'right meow !!'}), 
+  format: combine(
+    label({ label: 'right meow !!' }),
     timestamp(),
     myFormat
   ),
-  transports:[new transports.Console(),new transports.File({ filename: 'combined.log' })]
+  transports: [new transports.Console(), new transports.File({ filename: 'combined.log' })]
 });
 
 logger.info("Hello")
@@ -72,7 +77,7 @@ logger.info("Hello")
 
 
 
- 
+
 //
 // If we're not in production then log to the `console` with the format:
 // `${info.level}: ${info.message} JSON.stringify({ ...rest }) `
@@ -83,6 +88,8 @@ logger.info("Hello")
 // const port = 8000;
 // logger.info(`Running server in port ${port}`)
 ////////////////////////////////////////////////////////////////////////////////////////
+
+// AXIOS CATCHE
 
 app.use(function (req, res, next) {
   console.log(`${new Date()} - recibida petición`);
@@ -137,85 +144,87 @@ let collection = {
 }
 
 
-// Lista las colecciones 
+// GET (OBTENER la lista de colecciones)
 
 app.get('/poi', (req, res) => {
   res.json(Object.keys(collection));
 })
 
-// Crea colecciones nuevas
+// POST (CREAR colecciones nuevas )
 
 app.post('/poi', (req, res) => {
+
   const collectionName = req.body.name;
 
-  // TODO: si ya existe otra con este nombre (409)
-
-  if (collectionName !== undefined ) {
-    collection[collectionName] = [];
-    res.send();
-  } else {
+  if (collectionName === undefined) {
     res.status(400).send();
+    return
   }
 
-  if (collection[collectionName] !== undefined) {
-    collection[collectionName] = [];
-    res.send();
-  } else {
-    res.status(409).send();
+  if (collection[collectionName.toLowerCase()] !== undefined) {
+    res.status(409).send()
+    return
   }
+
+  collection[collectionName] = []
+  res.send();
 
 })
 
-// Crear los objetos de una coleccion en concreto
+// POST (CREAR LOS OBJETOS de una coleccion en concreto)
 
 app.post('/poi/:collection', (req, res) => {
-  let collectionName = req.params.collection;
+  let collectionName = req.params.collection.toLocaleLowerCase();
 
-  // TODO: comprobar si la colección existe (404)
   // TODO: comprobar si piden añadir sobre alguna colección externa
 
-  if (collectionName !== undefined) {
-    let data = {
-      concello: req.body.concello,
-      coordenadas: req.body.coordenadas,
-      web: req.body.web,
-      provincia: req.body.provincia,
-      datos: {
-        nome: req.body.nome
-      }
-    }
-
-    collection[collectionName].push(data);
-
-    res.send();
-  }else{
-    res.status(404).send();
+  if (['beaches', 'council', 'theater'].filter(item => item === collectionName).length !== 0) {
+    res.status(403).send(); // Codigo de error de forbiden (Prohibido)
+    return
   }
 
-  if (collectionName == "beaches" || 
-  collectionName == "theater" || 
-  collectionName == "council") {
-    let data = {
-      concello: req.body.concello,
-      coordenadas: req.body.coordenadas,
-      web: req.body.web,
-      provincia: req.body.provincia,
-      datos: {
-        nome: req.body.nome
-      }
-    }
+  // TODO: comprobar si la colección existe (404)
 
-    collection[collectionName].push(data);
 
-    res.send();
-  }else{
+
+  if (collection[collectionName] === undefined) {
     res.status(404).send();
+    return
   }
+
+  const isEqual = (item) => {
+
+    return false
+  }
+  // Comprobar si el nuevo elemento ya existe
+
+  const equalElements = collection[collectionName].filter(isEqual)
+
+  if (equalElements.length !== 0) {
+    res.status(409).send()
+    return;
+  }
+
+  let data = {
+    id: globalId++,
+    concello: req.body.concello,
+    coordenadas: req.body.coordenadas,
+    web: req.body.web,
+    provincia: req.body.provincia,
+    datos: {
+      nome: req.body.nome
+    }
+  }
+
+  collection[collectionName].push(data);
+
+  res.send();
+
 });
 
 
 
-// Devuelve la lista de los teatros 
+// TEATROS(Devuelve la lista de los teatros )
 
 app.get('/poi/theater', async (req, res) => {
   let listOfTheaters;
@@ -247,7 +256,7 @@ app.get('/poi/theater', async (req, res) => {
 
 
 
-// Devuelve los objetos de la coleccion ayuntamientos
+// GET (Devuelve los objetos de la coleccion ayuntamientos)
 
 app.get('/poi/council', async (req, res) => {
   let listOfCouncils;
@@ -276,7 +285,7 @@ app.get('/poi/council', async (req, res) => {
 
 })
 
-// Devuelve los objetos de la coleccion playas
+// GET( Devuelve los objetos de la coleccion playas)
 
 app.get('/poi/beaches', async (req, res) => {
   // querystring
@@ -311,42 +320,121 @@ app.get('/poi/beaches', async (req, res) => {
 
 });
 
-// Devuelve los objetos de una coleccion en concreto
+// GET(Devuelve los objetos de una coleccion en concreto)
 
 app.get('/poi/:collection', (req, res) => {
   let collectionName = req.params.collection;
   // TODO: check if collection exists (404)
 
-  if (collection !== undefined) {
+  if (collection[collectionName] !== undefined) {
     res.json(collection[collectionName]);
+    return;
   }
   else {
     res.status(404).send();
   }
 
 
-  if (collectionName !== undefined) {
-    res.json(collection[collectionName]);
-  }
-  else {
-    res.status(400).send();
-  }
 });
 
 
-// TODO: Crear un metodo app.delete /poi/name of collection/id
-// ELIMINAR una objeto de una coleccion en concreto
+// DELETE(ELIMINAR una objeto de una coleccion en concreto)
+
+app.delete('/poi/:collection/:id', (req, res) => {
+
+  let collectionName = req.params.collection;
+  let collectionId = parseInt(req.params.id);
+
+  // Si no existe el id a eliminar manda un 404
+  if(collection[collectionName].find(item => item.id === collectionId) === undefined){
+    res.status(404).send();
+    return
+  }
+
+ 
+  let filteredCollection = collection[collectionName].filter(item => item.id !== collectionId);
+  collection[collectionName] = filteredCollection
 
 
 
 
-// TODO: Crear un metodo app.put /poi/name of collection/id
-// ACTUALIZAR TODOS LOS CAMPOS de una coleccion en concreto
+  res.json(collection[collectionName])
+
+})
+
+
+// PUT(ACTUALIZAR TODOS LOS CAMPOS de una coleccion en concreto)
+
+app.put('/poi/:collection/:id', (req, res) => {
+  const collectionName = req.params.collection;
+
+  // OJO!!! cuando generamos el ID era un número entero, pero en la URL
+  // viene como cadena
+  const id = parseInt(req.params.id);
+
+  if (collection[collectionName] === undefined) {
+    res.status(404).send();
+    return;
+  }
+
+  if (req.body.coordenadas === undefined ||
+    req.body.concello === undefined ||
+    req.body.provincia === undefined ||
+    req.body.web === undefined) {
+      res.status(400).send();
+      return;
+    }
+
+  let searchedElement = collection[collectionName].find(item => item.id === id);
+  if (searchedElement === undefined) {
+    res.status(404).send();
+    return;
+  }
+
+  searchedElement.concello = req.body.concello;
+  searchedElement.coordenadas = req.body.coordenadas;
+  searchedElement.web = req.body.web;
+  searchedElement.provincia = req.body.provincia;
+  searchedElement.datos = req.body.datos;
+
+  res.send();
+});
 
 
 
-// TODO: Crear un metodo app.patch /poi/name of collection/id
-// ACTUALIZAR UNO O VARIOS CAMPOS ESPECIFICADOS de una coleccion en concreto
+// PATCH (ACTUALIZAR UNO O VARIOS CAMPOS ESPECIFICADOS de una coleccion en concreto)
+
+app.patch('/poi/:collection/:id', (req, res) => {
+  const collectionName = req.params.collection;
+
+  // OJO!!! cuando generamos el ID era un número entero, pero en la URL
+  // viene como cadena
+  const id = parseInt(req.params.id);
+
+  if (collection[collectionName] === undefined) {
+    res.status(404).send();
+    return;
+  }
+
+  let searchedElement = collection[collectionName].find(item => item.id === id);
+  if (searchedElement === undefined) {
+    res.status(404).send();
+    return;
+  }
+
+  const bodyParams = Object.keys(req.body);
+
+  for (let param of bodyParams) {
+    searchedElement[param] = req.body[param];
+  }
+
+//  Object.keys(req.body).forEach(key => {
+//    searchedElement[key] = req.body[key];
+//  })
+
+  res.send();
+});
+
 
 app.listen(8000);
 
