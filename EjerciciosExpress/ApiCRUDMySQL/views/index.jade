@@ -1,0 +1,51 @@
+extends layout.jade
+
+block   content
+    section.container
+        include header
+        article.item
+            -if(data.length)
+                //Estas lineas de por solo cogen los datos siendo necesario hacer la estructura de las tablas. 
+                // Esto lo hacemos con los estilos definidos en la clase ".table" a los que esta asociada la tabla
+                table.table
+                    tr
+                        th  Id    
+                        th  Titulo
+                        th  Año
+                        th  Puntuacion
+                        th  Poster
+                        th  (colspan="2")
+                            form(method="GET" action="/agregar")
+                                input.button.add(type="submit", value="Agregar")
+                    -each movie in data
+                        tr
+                            td  #(movie.movie_id)
+                            td  #(movie.title)
+                            td  #(movie.release_year)
+                            td  #(movie.movie_rating) 
+                            td  
+                                img.poster(src="#movie.image" , alt="#{movie.title}")
+                            td
+                                form(method="GET" action="/editar/#{movie.movie_id}")
+                                    input.button.edit(type="submit", value="Editar")
+                            td  
+                                form(method="POST" action="/eliminar/#{movie.movie_id}")
+                                    input.button.delete(type="button", value="Eliminar" onclick= eliminar(this));
+                
+                script.
+                    function eliminar(input)
+                    {
+                        var deleteOk = confirm ('¿Estas seguro de eliminar la pelicula?')
+                        // Si se retorna verdadero se hace un submit del parentNode de input que es form en caso
+                        // contrario retorna false
+                        return (deleteOk) ? input.parentNode.submit() :false
+                    }
+            -else
+                p.error No existen Peliculas en la Base De Datos
+
+
+
+
+
+    
+

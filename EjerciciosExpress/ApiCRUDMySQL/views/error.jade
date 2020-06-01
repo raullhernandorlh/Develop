@@ -1,0 +1,12 @@
+extends layout
+
+block content
+    article.content
+        div.item.center
+            h1=title
+            h2=descripcion
+            h3
+                a(href="/")Regresar
+            pre.error
+                code #{error.stack}
+
