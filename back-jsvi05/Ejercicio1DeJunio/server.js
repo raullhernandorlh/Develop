@@ -5,6 +5,9 @@ const express = require('express');
 const axiosCacheAdapter = require('axios-cache-adapter');
 const winston = require('winston');
 
+
+const poiManager = require('storage-memory.js');
+
 const app = express();
 
 let globalId = 0;
@@ -47,7 +50,7 @@ app.use(function (req, res, next) {
 });
 
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({extended: true}));
+app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use(function (req, res, next) {
   console.log(`${new Date()} - recibida petición`);
@@ -84,26 +87,22 @@ async function getJSONFromNetwork(url, delimiter) {
 
     listOfData = response.data;
 
-  } catch(e) {
+  } catch (e) {
     throw 'unknown-error';
   }
 
-  listOfData = await csvtojson({'delimiter': delimiter}).fromString(listOfData);
+  listOfData = await csvtojson({ 'delimiter': delimiter }).fromString(listOfData);
 
   return listOfData;
 }
 
-//let collections = ['theater', 'beaches', 'council'];
-
-let collection = {
-  'theater': [],
-  'beaches': [],
-  'council': []
-}
-
+// GET . LISTAR LA LISTA de Point Of Interest
 app.get('/poi', (req, res) => {
-  res.json( Object.keys(collection) );
+  res.json(poiManager.getListNames());
 })
+
+
+// POST . CREAMOS UNA LISTA  de Point Of Interest
 
 app.post('/poi', (req, res) => {
   const collectionName = req.body.name;
@@ -112,17 +111,20 @@ app.post('/poi', (req, res) => {
     res.status(400).send();
     return;
   }
+  // Creamos la lista con el nombre de la coleccion que le pasamos por el body 
+  // Si existe la enviamos y sino error 409;
 
-  if (collection[collectionName.toLowerCase()] !== undefined) {
+  try {
+    poiManager.createList(collectionName)
+    res.send()
+  } catch (e) {
     res.status(409).send();
-    return;
+    return
   }
 
-  collection[collectionName.toLowerCase()] = [];
-
-  res.send();
 })
 
+// POST .CREART ELEMENTOS de las Colecciones
 
 app.post('/poi/:collection', (req, res) => {
   let collectionName = req.params.collection.toLowerCase();
@@ -131,54 +133,31 @@ app.post('/poi/:collection', (req, res) => {
   // fuera de nuestro control, que son las que gestiona la Xunta (banderas azules, ayuntamientos y 
   // teatros/auditorios)
   //  const filteredList = ['beaches', 'council', 'theater'].filter(item => item === collectionName);
-  if (['beaches', 'council', 'theater'].indexOf(collectionName) !== -1 ) {
+  if (['beaches', 'council', 'theater'].indexOf(collectionName) !== -1) {
     res.status(403).send();
-    return; 
-  }  
-
-  if (collection[collectionName] === undefined) {
-    res.status(404).send();
     return;
   }
 
-
-  if (req.body.coordenadas === undefined ||
-    req.body.concello === undefined ||
-    req.body.provincia === undefined ||
-    req.body.web === undefined) {
-      res.status(400).send();
-      return;
+  try {
+    let id = poiManager.addPointOfInterest(collectioName, req.body)
+  } catch (e) {
+    if (e.message == 'missing-data') {
+      res - status(400).send();
+      return
+    } else if (e.message == "unknown-list") {
+      res.status(404).send();
+    } else if (e.message === "already-exists") {
+      res.status(409).send();
+      return
     }
 
-  const isEqual = (item) => {
-    // ...
-    // return (true|false) 
-    // TODO!!!
-    return false
   }
-
-  // comprobar si el nuevo elemento ya existía
-  const equalElements = collection[collectionName].filter( isEqual );
-  if (equalElements.length !== 0) {
-    res.status(409).send();
-    return;
-  }
-
-  let data = {
-    id: globalId++,
-    concello: req.body.concello,
-    coordenadas: req.body.coordenadas,
-    web: req.body.web,
-    provincia: req.body.provincia,
-     datos: {
-       nome: req.body.nome
-     }
-  }
-
-  collection[collectionName].push(data);
-
-  res.json({id: data.id});
+  // Retornamos el Id cuando agreagmos un point of interest porque luego este puede ser utilizado
+  // para eliminar un registro, actualizar todos los registros o actualizar uno en concreto
+  res.json({ id: id });
 });
+
+// DELETE - Eliminar Point Of Interest 
 
 app.delete('/poi/:collection/:id', (req, res) => {
   const collectionName = req.params.collection;
@@ -187,100 +166,78 @@ app.delete('/poi/:collection/:id', (req, res) => {
   // viene como cadena
   const id = parseInt(req.params.id);
 
-  if (collection[collectionName] === undefined) {
-    res.status(404).send();
-    return;
+  try {
+    poiManager.deletePointOfInterest(collectionName, id)
+  } catch (e) {
+    if (e.message === "unknow-list" || e.message === "unknow-point") {
+      res.status(404).send();
+      return;
+    }
   }
-
-  if (collection[collectionName].find(item => item.id === id) === undefined) {
-    res.status(404).send();
-    return;
-  }
-
-  collection[collectionName] = collection[collectionName].filter( item => item.id !== id);
 
   res.send();
 });
+
+// PUT -ACTUALIZAR TODOS LOS ELEMENTOS DE LA COLECCION
 
 app.put('/poi/:collection/:id', (req, res) => {
   const collectionName = req.params.collection;
-
-  // OJO!!! cuando generamos el ID era un número entero, pero en la URL
-  // viene como cadena
   const id = parseInt(req.params.id);
 
-  if (collection[collectionName] === undefined) {
-    res.status(404).send();
-    return;
-  }
-
-  if (req.body.coordenadas === undefined ||
-    req.body.concello === undefined ||
-    req.body.provincia === undefined ||
-    req.body.web === undefined) {
+  try {
+    poiManager.updatePointOfInterest(collectionName, id, req.body)
+  } catch (e) {
+    if (e.message === 'undefined-body-parameter') {
       res.status(400).send();
-      return;
+      return
+    } else if (e.message === 'undefined searched-element') {
+      res.status(404).send();
+      return
+    } else if (e.message === 'undefined searched-element') {
+      res.status(404).send();
+      return
     }
-
-  let searchedElement = collection[collectionName].find(item => item.id === id);
-  if (searchedElement === undefined) {
-    res.status(404).send();
-    return;
   }
-
-  searchedElement.concello = req.body.concello;
-  searchedElement.coordenadas = req.body.coordenadas;
-  searchedElement.web = req.body.web;
-  searchedElement.provincia = req.body.provincia;
-  searchedElement.datos = req.body.datos;
 
   res.send();
 });
+
+
+// PATCH - ACTUALIZA UNO O VARIOS DE LOS ELEMENTOS DE UNA COLECCION
 
 app.patch('/poi/:collection/:id', (req, res) => {
-  const collectionName = req.params.collection;
 
-  // OJO!!! cuando generamos el ID era un número entero, pero en la URL
-  // viene como cadena
+  const collectionName = req.params.collection;
   const id = parseInt(req.params.id);
 
-  if (collection[collectionName] === undefined) {
-    res.status(404).send();
-    return;
+  try {
+    poiManager.patchPointOfInterest(collectionName, id, req.body)
+  } catch (e) {
+    if (e.message === 'unkonow-collection') {
+      res.status(404).send()
+      return
+    } else if (e.message === 'unkonow-searched-element') {
+      res.status(404).send()
+      return
+    }
   }
-
-  let searchedElement = collection[collectionName].find(item => item.id === id);
-  if (searchedElement === undefined) {
-    res.status(404).send();
-    return;
-  }
-
-  const bodyParams = Object.keys(req.body);
-
-  for (let param of bodyParams) {
-    searchedElement[param] = req.body[param];
-  }
-
-//  Object.keys(req.body).forEach(key => {
-//    searchedElement[key] = req.body[key];
-//  })
 
   res.send();
 });
 
+// GET - LISTAR TODOS LOS TEATROS (theaters)
 
-
-app.get('/poi/theater', async(req, res) => {
+app.get('/poi/theater', async (req, res) => {
   let listOfTheaters;
 
   try {
     listOfTheaters = await getJSONFromNetwork(urlTheater, ';');
-  } catch(e) {
+  } catch (e) {
     res.status(500).send();
     return;
   }
 
-  listOfTheaters = listOfTheaters.map( theater => {
+  listOfTheaters = listOfTheaters.map(theater => {
     return {
       concello: theater['CONCELLO'],
       coordenadas: theater['COORDENADAS'],
@@ -298,25 +255,14 @@ app.get('/poi/theater', async(req, res) => {
 
 })
 
-/*{
-  concello: ,
-  coordenadas: ,
-  codigoPostal: ,
-  direccion: ,
-  web: ,
-  provincia: ,
+// GET - LISTAR TODOS LOS AYUNTAMIENTOS (councils)
 
-  datos: {
-
-  }
-*/
-
-app.get('/poi/council', async(req, res) => {
+app.get('/poi/council', async (req, res) => {
   let listOfCouncils;
 
   try {
     listOfCouncils = await getJSONFromNetwork(urlCouncil, ',');
-  } catch(e) {
+  } catch (e) {
     res.status(500).send();
     return;
   }
@@ -338,6 +284,8 @@ app.get('/poi/council', async(req, res) => {
 
 })
 
+// GET - LISTAR TODAS LAS PLAYAS (beaches)
+
 app.get('/poi/beaches', async (req, res) => {
   // querystring
   // ?year=2019&state=15
@@ -358,18 +306,19 @@ app.get('/poi/beaches', async (req, res) => {
 
   try {
     listOfBeaches = await getJSONFromNetwork(urls[year], ';');
-  } catch(e) {
+  } catch (e) {
     res.status(500).send();
     return;
   }
 
   if (state !== undefined) {
-    listOfBeaches = listOfBeaches.filter( beach => beach['C�DIGO PROVINCIA'] === state)
+    listOfBeaches = listOfBeaches.filter(beach => beach['C�DIGO PROVINCIA'] === state)
   }
 
   res.json(listOfBeaches);
 });
 
+// LISTAR TODAS LAS COLECCIONES 
 
 app.get('/poi/:collection', (req, res) => {
   let collectionName = req.params.collection;
