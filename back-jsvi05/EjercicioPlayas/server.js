@@ -23,6 +23,7 @@ app.get('/pointofinterest', async function (req, res) {
     }
 
   } else {
+    
     try {
       const beachFilterByYear = await datosPlayasGallegas(year);
       const filteredBeaches = beachFilterByYear.filter(beach => beach['C�DIGO PROVINCIA'] === state)

@@ -28,12 +28,12 @@ app.use(function (req, res, next) {
 });
 
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({extended: true}));
+app.use(bodyParser.urlencoded({ extended: true }));
 
-// app.use(function (req, res, next) {
-//   console.log(`${new Date()} - recibida petición`);
-//   next();
-// });
+app.use(function (req, res, next) {
+  console.log(`${new Date()} - recibida petición`);
+  next();
+});
 
 // Create `axios-cache-adapter` instance
 const cache = axiosCacheAdapter.setupCache({
@@ -46,21 +46,13 @@ const cachedAxios = axios.create({
 })
 
 const urls = {
-  beaches = {
   '2017': 'https://abertos.xunta.gal/catalogo/cultura-ocio-deporte/-/dataset/0380/praias-galegas-con-bandeira-azul-2017/001/descarga-directa-ficheiro.csv',
   '2018': 'https://abertos.xunta.gal/catalogo/cultura-ocio-deporte/-/dataset/0392/praias-galegas-con-bandeira-azul-2018/001/descarga-directa-ficheiro.csv',
   '2019': 'https://abertos.xunta.gal/catalogo/cultura-ocio-deporte/-/dataset/0401/praias-galegas-con-bandeira-azul-2019/001/descarga-directa-ficheiro.csv',
-  },
-
-  poi = {
-    'theatres':'https://abertos.xunta.gal/catalogo/cultura-ocio-deporte/-/dataset/0305/teatros-auditorios/001/descarga-directa-ficheiro.csv',
-    'councils':'https://abertos.xunta.gal/catalogo/administracion-publica/-/dataset/0301/casas-dos-concellos-galicia/102/acceso-aos-datos.csv'
-  }
-
 }
 
-
-let nameCollection = ['theater','councils','beaches'];
+const urlTheater = 'https://abertos.xunta.gal/catalogo/cultura-ocio-deporte/-/dataset/0305/teatros-auditorios/001/descarga-directa-ficheiro.csv';
+const urlCouncil = 'https://abertos.xunta.gal/catalogo/administracion-publica/-/dataset/0301/casas-dos-concellos-galicia/102/acceso-aos-datos.csv';
 
 async function getJSONFromNetwork(url, delimiter) {
   let listOfData;
@@ -73,38 +65,108 @@ async function getJSONFromNetwork(url, delimiter) {
 
     listOfData = response.data;
 
-  } catch(e) {
+  } catch (e) {
     throw 'unknown-error';
   }
 
-  listOfData = await csvtojson({'delimiter': delimiter}).fromString(listOfData);
+  listOfData = await csvtojson({ 'delimiter': delimiter }).fromString(listOfData);
 
   return listOfData;
 }
 
+//let collections = ['theater', 'beaches', 'council'];
 
-// let races = [];
+let collection = {
+  'theater': undefined,
+  'beaches': undefined,
+  'council': undefined
+}
 
-// app.post('/races', (req, res) => {
-//   races.push(req.body);
-//   res.send();
-// });
+app.get('/poi', (req, res) => {
+  res.json(Object.keys(collection));
+})
 
-// app.get('/races', (req, res) => {
-//   res.json(races);
-// })
+app.post('/poi', (req, res) => {
+  const collectionName = req.body.name;
 
-app.get('/poi/' + nameCollection[0], async(req, res) => {
+  // TODO: si ya existe otra con este nombre (409)
+
+  if (collectionName !== undefined ) {
+    collection[collectionName] = [];
+    res.send();
+  } else {
+    res.status(400).send();
+  }
+
+  if (collection[collectionName] !== undefined) {
+    collection[collectionName] = [];
+    res.send();
+  } else {
+    res.status(409).send();
+  }
+
+})
+
+
+app.post('/poi/:collection', (req, res) => {
+  let collectionName = req.params.collection;
+
+  // TODO: comprobar si la colección existe (404)
+  // TODO: comprobar si piden añadir sobre alguna colección externa
+
+  if (collectionName !== undefined) {
+    let data = {
+      concello: req.body.concello,
+      coordenadas: req.body.coordenadas,
+      web: req.body.web,
+      provincia: req.body.provincia,
+      datos: {
+        nome: req.body.nome
+      }
+    }
+
+    collection[collectionName].push(data);
+
+    res.send();
+  }else{
+    res.status(404).send();
+  }
+
+  if (collectionName == "beaches" || 
+  collectionName == "theater" || 
+  collectionName == "council") {
+    let data = {
+      concello: req.body.concello,
+      coordenadas: req.body.coordenadas,
+      web: req.body.web,
+      provincia: req.body.provincia,
+      datos: {
+        nome: req.body.nome
+      }
+    }
+
+    collection[collectionName].push(data);
+
+    res.send();
+  }else{
+    res.status(404).send();
+  }
+});
+
+
+
+
+app.get('/poi/theater', async (req, res) => {
   let listOfTheaters;
 
   try {
-    listOfTheaters = await getJSONFromNetwork(urls.poi['theatres'], ';');
-  } catch(e) {
+    listOfTheaters = await getJSONFromNetwork(urlTheater, ';');
+  } catch (e) {
     res.status(500).send();
     return;
   }
 
-  listOfTheaters = listOfTheaters.map( theater => {
+  listOfTheaters = listOfTheaters.map(theater => {
     return {
       concello: theater['CONCELLO'],
       coordenadas: theater['COORDENADAS'],
@@ -135,12 +197,12 @@ app.get('/poi/' + nameCollection[0], async(req, res) => {
   }
 */
 
-app.get('/poi/' + nameCollection[1], async(req, res) => {
+app.get('/poi/council', async (req, res) => {
   let listOfCouncils;
 
   try {
-    listOfCouncils = await getJSONFromNetwork(urls.poi[councils], ',');
-  } catch(e) {
+    listOfCouncils = await getJSONFromNetwork(urlCouncil, ',');
+  } catch (e) {
     res.status(500).send();
     return;
   }
@@ -162,7 +224,7 @@ app.get('/poi/' + nameCollection[1], async(req, res) => {
 
 })
 
-app.get('/poi/' + nameCollection[2], async (req, res) => {
+app.get('/poi/beaches', async (req, res) => {
   // querystring
   // ?year=2019&state=15
   // ?year=2019
@@ -175,62 +237,46 @@ app.get('/poi/' + nameCollection[2], async (req, res) => {
     return;
   }
 
-  if (urls.beaches[year] === undefined) {
+  if (urls[year] === undefined) {
     res.status(404).send();
     return;
   }
 
   try {
-    listOfBeaches = await getJSONFromNetwork(urls.beaches[year], ';');
-  } catch(e) {
+    listOfBeaches = await getJSONFromNetwork(urls[year], ';');
+  } catch (e) {
     res.status(500).send();
     return;
   }
 
   if (state !== undefined) {
-    listOfBeaches = listOfBeaches.filter( beach => beach['C�DIGO PROVINCIA'] === state)
+    listOfBeaches = listOfBeaches.filter(beach => beach['C�DIGO PROVINCIA'] === state)
   }
 
   res.json(listOfBeaches);
 
 });
 
-// http://example.com/poi/europe/spain/galicia/vigo
-
-// TODO Names of current collection of points 
-
-app.get('/poi', async(req, res) => {
-  names = [];
-  names = nameCollection.map( name => names.push(name))
-  res.json(names);
-})
-
-// TODO Create new collections
-
-let collections = [];
-let getCollection = [];
-let id;
-
-
-app.post('/poi/:collection', (req, res) => {
-   collections.push(req.body);
-   res.send();
-});
 
 app.get('/poi/:collection', (req, res) => {
-  res.json(collections);
-})
+  let collectionName = req.params.collection;
+  // TODO: check if collection exists (404)
 
-app.get(`/poi/:collection/:${id}`, (req, res) => {
-  getCollection = collections.filter((collection) => collection.id === id);
-
-  res.json(getCollection);
-})
-
-
-
+  if (collection !== undefined) {
+    res.json(collection[collectionName]);
+  }
+  else {
+    res.status(404).send();
+  }
 
 
+  if (collectionName !== undefined) {
+    res.json(collection[collectionName]);
+  }
+  else {
+    res.status(400).send();
+  }
+});
 
 app.listen(8000);
 
