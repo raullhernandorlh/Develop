@@ -1,0 +1,49 @@
+Mongo es una base de datos de tipo lazy . Es decir que si no encuentra una base de datos la creazione
+
+Ejecutamos el Demonio (servicio) de MongoDb ---------------------------------------------mongod
+Comando para ver las bases de datos -----------------------------------------------------show dbs
+Comando para usar una base de datos -----------------------------------------------------use <nombre_db>
+Mostrar colecciones -------------------------------------------------------------------- show collections
+
+Imaginemos que la base de datos que hemos creado es "perros" . IMPORTANTE - En cualquier momento se puede 
+hacer referencia a la base de datos que estamos utilizando como "db"
+
+Insertar la coleccion "razas" ------------------------------------------------------------perros.razas
+
+Insertar una raza en su coleccion
+                db.razas.insert({nombre:"Husky"})
+                db.razas.insert({nombre:"Pastor Aleman"})
+
+Contamos el numero de documentos dentro de razas                                     perros.razas.count()
+
+Buscar todos los documentos de la coleccion raza-------------------------------------------db.razas.find()
+        Te podria devolver algo parecido a:
+
+        {"_id": ObjectId("3465876hdkhkjadhdkh63nd), "nombre" : "Husky"}
+        {"_id": ObjectId("3465876hdkhkjadhdkh63nd), "nombre" : "Pastor Aleman"}
+
+Eliminamos el documento "Husky" ------------------------------------------db.razas.remove({nombre:"Husky"})
+
+Modificamos con el metodo save sabiendo de antemano el _id. Hay que especificar el id. Si no existe lo inserta
+y si existe ya lo modifica. Ambas cosas : insertar y actualizar lo hace con "save"
+
+        db.razas.save{"_id": ObjectId("3465876hdkhkjadhdkh63nd), "nombre" : "HuskyNuevo"}
+
+Devolver el documento Husky de la coleccion razas
+
+                                db.razas.findOne("nombre":"Husky")
+
+Analizar la informacion del query 
+                                    db.razas.find().explain()
+
+
+
+
+
+
+
+
+
+
+
+

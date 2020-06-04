@@ -52,7 +52,23 @@ li{
 }
 
 .item{
-    float:
+    float: left;
     width:25%;
 }
+
+.error{
+    display:block;
+    margin:auto;
+    padding:1rem;
+    width:90%;
+    /* Al ser muy extensos los textos de error sera necesario poner un scroll
+    en el eje x para manejar mejor el tamaño y que no desborde */
+    overflow-x: scroll; 
+    text-align:left;
+    background-color: #303030;
+    color:#80BD01;
+
+}
+
+
 

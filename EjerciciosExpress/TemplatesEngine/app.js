@@ -15,6 +15,7 @@ let express = require('express'),
 app
     //configurando app
     .set('views',viewDir)
+    // .set('view engine','ejs');
     .set('view engine','jade')
     .set('port',port)
     //ejecutando middlewares
